@@ -1,0 +1,30 @@
+# CCS Build Output
+Debug/
+*.out
+*.txt
+*.i1
+*.xml
+*.map
+
+# Keil Build Output
+keil/Listings/
+keil/Objects/
+keil/*.uvoptx
+keil/*.uvguix.*
+
+# IDE Settings
+.project
+.cproject
+.settings/
+*.launch
+
+# OS
+Thumbs.db
+.DS_Store
+
+# Other
+*.o
+*.d
+*.hex
+*.axf
+*.sct
