@@ -50,9 +50,11 @@
   */
 uint8_t OLED_DisplayBuf[8][128];
 
-// 中断保护宏定义
-#define OLED_ENTER_CRITICAL()    __asm(" CPSID I ")
-#define OLED_EXIT_CRITICAL()     __asm(" CPSIE I ")
+// 中断保护宏定义（注释掉以避免长时间关中断导致主循环饿死）
+// #define OLED_ENTER_CRITICAL()    __asm(" CPSID I ")
+// #define OLED_EXIT_CRITICAL()     __asm(" CPSIE I ")
+#define OLED_ENTER_CRITICAL()
+#define OLED_EXIT_CRITICAL()
 
 /*********************全局变量*/
 

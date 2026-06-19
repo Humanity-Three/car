@@ -3,6 +3,8 @@
 
 #include "ti_msp_dl_config.h"
 
+extern volatile uint32_t g_sys_tick_10ms;       //10ms 系统滴答
+
 void Control_AB(void);
 void Control_ABCDA(void);
 void Control_ACBDA(void);

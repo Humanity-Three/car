@@ -1,6 +1,7 @@
 #include "MPU6050.h"
 #include "ti_msp_dl_config.h"
 #include "Delay.h"
+#include "control.h"
 #include <math.h>
 
 // 定义原始数据变量
@@ -33,9 +34,11 @@ static float gyro_z_offset = 0;
 // 通过加速度计计算的角度
 float accel_pitch, accel_roll;
 
-// 中断保护宏
-#define I2C_ENTER_CRITICAL()    __asm(" CPSID I ")
-#define I2C_EXIT_CRITICAL()     __asm(" CPSIE I ")
+// 中断保护宏（注释掉以避免长时间关中断导致主循环饿死）
+// #define I2C_ENTER_CRITICAL()    __asm(" CPSID I ")
+// #define I2C_EXIT_CRITICAL()     __asm(" CPSIE I ")
+#define I2C_ENTER_CRITICAL()
+#define I2C_EXIT_CRITICAL()
 
 //=====================================================================
 // 软件模拟 I2C（参考嘉立创官方示例）
@@ -389,13 +392,27 @@ void MPU6050_Read_Data(void)
 
 void MPU6050_Get_Angle(void)
 {
+    static uint32_t last_tick = 0;
+    uint32_t current_tick = g_sys_tick_10ms;
+    float dt = (float)(current_tick - last_tick) * 0.01f;  // 实际时间间隔（秒）
+    if(dt <= 0.0f || dt > 0.1f) dt = 0.01f;                // 合理性检查
+    last_tick = current_tick;
+
     accel_pitch = atan2(accel_y, accel_z) * 180.0f / 3.1415926f;
     accel_roll = atan2(accel_x, sqrt(accel_y * accel_y + accel_z * accel_z)) * 180.0f / 3.1415926f;
 
-    Pitch = ALPHA * (Pitch + gyro_y * DT) + (1.0f - ALPHA) * accel_pitch;
-    Roll  = ALPHA * (Roll  - gyro_x * DT) + (1.0f - ALPHA) * accel_roll;
+    Pitch = ALPHA * (Pitch + gyro_y * dt) + (1.0f - ALPHA) * accel_pitch;
+    Roll  = ALPHA * (Roll  - gyro_x * dt) + (1.0f - ALPHA) * accel_roll;
 
-    Yaw += gyro_z * DT;
+    // Yaw 积分 + 漂移抑制：静止时缓慢衰减漂移，转动时正常积分
+    float delta = gyro_z * dt;
+    if(delta > 2.0f)  delta = 2.0f;    // 限幅：单次变化不超过 2°，防止 I2C 错误突变
+    if(delta < -2.0f) delta = -2.0f;
+
+    if(fabsf(gyro_z) > 0.1f)
+        Yaw += delta;             // 正在转动，正常积分
+    else
+        Yaw *= 0.998f;            // 静止时缓慢拉回零，抵消漂移
 
     if (Yaw > 180.0f)      Yaw -= 360.0f;
     else if (Yaw < -180.0f) Yaw += 360.0f;

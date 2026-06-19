@@ -26,3 +26,6 @@ Thumbs.db
 *.hex
 *.axf
 *.sct
+
+# Backup clone
+_github_upload_clone3/

@@ -96,7 +96,21 @@ int main(void)
             Delay_ms(10);
             if(!DL_GPIO_readPins(GPIO_Key_PIN_S2_PORT, GPIO_Key_PIN_S2_PIN))
             {
-                 mode = (mode + 1)%4;
+                // 等待松开，同时计时区分短按/长按
+                int key_count = 0;
+                while(!DL_GPIO_readPins(GPIO_Key_PIN_S2_PORT, GPIO_Key_PIN_S2_PIN) && key_count < 200)
+                {
+                    Delay_ms(10);
+                    key_count++;
+                }
+                if(key_count < 190) // 短按（< 1.9 秒）→ 切换模式
+                {
+                    mode = (mode + 1) % 4;
+                }
+                else                // 长按（≥ 1.9 秒）→ Yaw 清零
+                {
+                    Yaw = 0;
+                }
             }
             while(!DL_GPIO_readPins(GPIO_Key_PIN_S2_PORT, GPIO_Key_PIN_S2_PIN));
         }
@@ -188,32 +202,6 @@ int main(void)
             {
                 Control_ACBDAx4();
             }
-        }
-        
-        // if (!DL_GPIO_readPins(GPIO_Key_PORT, GPIO_Key_PIN_S2_PIN)) 
-        // {
-        //     Serial_JY61P_Zero_Yaw();
-        // }
-        
-        // MPU6050 Yaw 角清零（长按 S2 键 2 秒）
-        if(!DL_GPIO_readPins(GPIO_Key_PIN_S2_PORT, GPIO_Key_PIN_S2_PIN))
-        {
-            Delay_ms(10);
-            if(!DL_GPIO_readPins(GPIO_Key_PIN_S2_PORT, GPIO_Key_PIN_S2_PIN))
-            {
-                // 等待 2 秒确认长按
-                int key_count = 0;
-                while(!DL_GPIO_readPins(GPIO_Key_PIN_S2_PORT, GPIO_Key_PIN_S2_PIN) && key_count < 200)
-                {
-                    Delay_ms(10);
-                    key_count++;
-                }
-                if(key_count >= 190) // 确认长按 2 秒
-                {
-                    Yaw = 0;  // Yaw 角清零
-                }
-            }
-            while(!DL_GPIO_readPins(GPIO_Key_PIN_S2_PORT, GPIO_Key_PIN_S2_PIN));
         }
         
     }
