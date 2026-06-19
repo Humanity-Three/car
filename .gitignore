@@ -13,8 +13,6 @@ keil/*.uvoptx
 keil/*.uvguix.*
 
 # IDE Settings
-.project
-.cproject
 .settings/
 *.launch
 
