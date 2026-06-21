@@ -5,6 +5,8 @@
 
 extern volatile uint32_t g_sys_tick_10ms;       //10ms 系统滴答
 
+void Alert_Trigger(void);
+void Alert_UpdateOutput(void);
 void Control_AB(void);
 void Control_ABCDA(void);
 void Control_ACBDA(void);

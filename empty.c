@@ -73,6 +73,7 @@ int main(void)
     DL_Timer_startCounter(TIMER_Encoder_Read_INST);
     DL_Timer_startCounter(TIMER_0_INST);
     DL_Timer_startCounter(PWM_0_INST);                 //pwm 定时器初始化
+    Alert_UpdateOutput();
     OLED_Init();
 
     if (!MPU6050_Init()) {
@@ -123,6 +124,7 @@ int main(void)
                 DL_GPIO_setPins(GPIO_STBY_PORT,GPIO_STBY_PIN_STBY_PIN);
                 timbegin=1;
                 begin=1;
+                Alert_Trigger();
             }
             while(!DL_GPIO_readPins(GPIO_Key_PIN_S1_PORT, GPIO_Key_PIN_S1_PIN));
         }

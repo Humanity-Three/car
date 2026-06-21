@@ -37,12 +37,16 @@ extern float Pitch;                                                     //陀螺
 extern float Roll;                                                      //陀螺仪横滚角返回值
 
 #define  Limit		200						//PWM波限幅，百分比制
-#define  ACBDA_DIAGONAL_TICKS  4100        //0.8m 和 1.0m 直角边斜边约 1.28m，对应编码器计数需实测标定
+#define  ACBDA_DIAGONAL_TICKS  3850        //0.8m 和 1.0m 直角边斜边约 1.28m，对应编码器计数需实测标定
 #define  ACBDA_X4_LAP2_YAW_CORRECTION  1.5f //ACBDAx4 第 2 圈离开黑线后的转向角度修正值
 #define  ACBDA_X4_LAP3_YAW_CORRECTION  3.0f //ACBDAx4 第 3 圈离开黑线后的转向角度修正值
 #define  ACBDA_X4_LAP4_YAW_CORRECTION  4.5f //ACBDAx4 第 4 圈离开黑线后的转向角度修正值
 
 //速度环PID
+#define  ABCDA_WHITE_ENTER_CONFIRM  8
+#define  ACBDA_WHITE_ENTER_CONFIRM  20
+#define  WHITE_RESET_CONFIRM        24
+
 #define   Kp1   			0.9
 #define   Ki1     		    0              //经测试不需要I环和D环
 #define   Kd1  				0
@@ -65,6 +69,26 @@ int timbegin=0,timnum=0;
 static float start_yaw_acbda = 0.0f;
 static int start_yaw_ready_acbda = 0;
 static int acbda_first_line_seen = 0;
+
+void Alert_UpdateOutput(void)
+{
+    if (ledflag == 1)
+    {
+        DL_GPIO_clearPins(GPIO_LED_PORT, GPIO_LED_PIN_LED_PIN);
+    }
+    else
+    {
+        DL_GPIO_setPins(GPIO_LED_PORT, GPIO_LED_PIN_LED_PIN);
+    }
+}
+
+void Alert_Trigger(void)
+{
+    ledbegin = 1;
+    ledflag = 1;
+    lednum = 0;
+    Alert_UpdateOutput();
+}
 
 static float Normalize_Yaw_Error(float current, float target)
 {
@@ -124,15 +148,11 @@ void Control_AB(void)                       //模式一
         // DL_GPIO_clearPins(GPIO_STBY_PORT,GPIO_STBY_PIN_STBY_PIN);
         timbegin=0;
         pwmstart=0;
-        ledbegin=1;
+        Alert_Trigger();
         a=1;
     }
 
-    if (ledflag==1)
-    {
-        DL_GPIO_setPins(GPIO_LED_PORT,GPIO_LED_PIN_LED_PIN);
-    }
-    else DL_GPIO_clearPins(GPIO_LED_PORT,GPIO_LED_PIN_LED_PIN);
+    Alert_UpdateOutput();
 
     targetA = Speed_Middle+bias;
 	targetB = Speed_Middle-bias;
@@ -162,11 +182,7 @@ void Control_ABCDA(void)
     static int da_arc_ready_to_stop = 0;
     static int ready_for_next_black = 1;
 
-    if (ledflag==1)
-    {
-        DL_GPIO_setPins(GPIO_LED_PORT,GPIO_LED_PIN_LED_PIN);
-    }
-    else DL_GPIO_clearPins(GPIO_LED_PORT,GPIO_LED_PIN_LED_PIN);
+    Alert_UpdateOutput();
 
     if (abcda_finished == 1)
     {
@@ -196,11 +212,11 @@ void Control_ABCDA(void)
     {
         white_count++;
         black_seen_count = 0;
-        if (white_count < 3)
+        if (white_count < ABCDA_WHITE_ENTER_CONFIRM)
         {
             whiteflag = last_whiteflag;
         }
-        if (white_count >= 20)
+        if (white_count >= WHITE_RESET_CONFIRM)
         {
             ready_for_next_black = 1;
         }
@@ -209,16 +225,13 @@ void Control_ABCDA(void)
     {
         black_seen_count++;
         white_count = 0;
-        if (black_seen_count < 2)
-        {
-            whiteflag = last_whiteflag;
-        }
     }
 
     if (whiteflag == 1 && last_whiteflag == 0 && da_arc_ready_to_stop == 1)
     {
         abcda_finished = 1;
         last_whiteflag = whiteflag;
+        Alert_Trigger();
         Set_Pwm(1, 1);
         timbegin = 0;
         return;
@@ -229,6 +242,7 @@ void Control_ABCDA(void)
         /* ── 白色直道（A→B 或 C→D）：陀螺仪修正方向直行 ── */
         if (last_whiteflag == 0)
         {
+            Alert_Trigger();
             if (n % 2 == 0)
             {
                 white_yaw_target = 180.0f - start_yaw;
@@ -254,6 +268,7 @@ void Control_ABCDA(void)
                 n=n+1;
                 ready_for_next_black = 0;
                 black_arc_ticks = 0;
+                Alert_Trigger();
             }
         }
         black_arc_ticks++;
@@ -293,8 +308,7 @@ void Control_ACBDA(void)
     int32_t current_mileage;
     int32_t white_distance;
 
-    if (ledflag==1) DL_GPIO_setPins(GPIO_LED_PORT,GPIO_LED_PIN_LED_PIN);
-    else DL_GPIO_clearPins(GPIO_LED_PORT,GPIO_LED_PIN_LED_PIN);
+    Alert_UpdateOutput();
 
     if (acbda_finished == 1)
     {
@@ -348,11 +362,11 @@ void Control_ACBDA(void)
     {
         white_count_acbda++;
         black_seen_count_acbda = 0;
-        if (white_count_acbda < 16)
+        if (white_count_acbda < ACBDA_WHITE_ENTER_CONFIRM)
         {
             whiteflag1 = last_whiteflag_acbda;
         }
-        if (white_count_acbda >= 20)
+        if (white_count_acbda >= WHITE_RESET_CONFIRM)
         {
             ready_for_next_black_acbda = 1;
         }
@@ -368,6 +382,7 @@ void Control_ACBDA(void)
         if (n >= 3 && last_whiteflag_acbda == 0)
         {
             acbda_finished = 1;
+            Alert_Trigger();
             Set_Pwm(1, 1);
             timbegin = 0;
             return;
@@ -377,7 +392,7 @@ void Control_ACBDA(void)
         if(ledflag1==0)
         {
             ledflag1=1;
-            ledbegin=1;
+            Alert_Trigger();
             m++;
             white_phase_acbda = 0;
             white_start_mileage_acbda = current_mileage;
@@ -390,11 +405,11 @@ void Control_ACBDA(void)
         {
             if (n%2==1)
             {
-                bias = Normalize_Yaw_Error(Yaw, start_yaw_acbda - 38.6f);
+                bias = Normalize_Yaw_Error(Yaw, start_yaw_acbda - 43.0f);
             }
             else
             {
-                bias = Normalize_Yaw_Error(Yaw, start_yaw_acbda + 180.0f + 39.4f);
+                bias = Normalize_Yaw_Error(Yaw, start_yaw_acbda + 180.0f + 47.0f);
             }
             if (white_distance >= ACBDA_DIAGONAL_TICKS)
             {
@@ -430,7 +445,6 @@ void Control_ACBDA(void)
         if(ledflag2==0)
         {
             ledflag2=1;
-            ledbegin=1;
             m++;
         }
 
@@ -448,6 +462,7 @@ void Control_ACBDA(void)
                 ready_for_next_black_acbda = 0;
                 b_yaw_aligned_acbda = 0;
                 white_phase_acbda = 0;
+                Alert_Trigger();
             }
         }
 
@@ -488,8 +503,7 @@ void Control_ACBDAx4(void)
     int lap_index;
     float lap_yaw_correction;
 
-    if (ledflag==1) DL_GPIO_setPins(GPIO_LED_PORT,GPIO_LED_PIN_LED_PIN);
-    else DL_GPIO_clearPins(GPIO_LED_PORT,GPIO_LED_PIN_LED_PIN);
+    Alert_UpdateOutput();
 
     if (x4_finished == 1)
     {
@@ -558,7 +572,7 @@ void Control_ACBDAx4(void)
     /* ── 防抖滤波 ── */
     if (black_count == 0)
     {
-        white_count_x4++;
+          white_count_x4++;
         black_seen_count_x4 = 0;
         if (white_count_x4 < 16)
         {
@@ -591,7 +605,7 @@ void Control_ACBDAx4(void)
         if (ledflag1 == 0)
         {
             ledflag1 = 1;
-            ledbegin = 1;
+            Alert_Trigger();
             m++;
             white_phase_x4 = 0;
             white_start_mileage_x4 = current_mileage;
@@ -638,7 +652,7 @@ void Control_ACBDAx4(void)
         if (ledflag2 == 0)
         {
             ledflag2 = 1;
-            ledbegin = 1;
+            Alert_Trigger();
             m++;
         }
 
